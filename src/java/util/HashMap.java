@@ -375,11 +375,8 @@ public class HashMap<K,V>
     }
 
     /**
-     * Retrieve object hash code and applies a supplemental hash function to the
-     * result hash, which defends against poor quality hash functions.  This is
-     * critical because HashMap uses power-of-two length hash tables, that
-     * otherwise encounter collisions for hashCodes that do not differ
-     * in lower bits. Note: Null keys always map to hash 0, thus index 0.
+     *  JDK 1.7实现：
+     *  将 键key 转换成 哈希码（hash值）操作  = 使用hashCode() + 4次位运算 + 5次异或运算（9次扰动）
      */
     final int hash(Object k) {
         int h = hashSeed;
@@ -512,13 +509,25 @@ public class HashMap<K,V>
      *         previously associated <tt>null</tt> with <tt>key</tt>.)
      */
     public V put(K key, V value) {
+
         if (table == EMPTY_TABLE) {
             inflateTable(threshold);
         }
+
         if (key == null)
             return putForNullKey(value);
+
+        // 根据key计算出hash值
         int hash = hash(key);
+
+        // 计算出数组下标
         int i = indexFor(hash, table.length);
+
+        /**
+         * 获取该位置上的链表头
+         * 如果为空，直接插入元素
+         * 如果不为空，如果这个key已经存在了，用新值覆盖旧值，然后返回该旧值
+         */
         for (Entry<K,V> e = table[i]; e != null; e = e.next) {
             Object k;
             if (e.hash == hash && ((k = e.key) == key || key.equals(k))) {
@@ -530,6 +539,7 @@ public class HashMap<K,V>
         }
 
         modCount++;
+        // 来到这里，说明key对应的entry不存在，则进行一个插入操作
         addEntry(hash, key, value, i);
         return null;
     }
@@ -599,14 +609,19 @@ public class HashMap<K,V>
      */
     void resize(int newCapacity) {
         Entry[] oldTable = table;
+
         int oldCapacity = oldTable.length;
+
         if (oldCapacity == MAXIMUM_CAPACITY) {
             threshold = Integer.MAX_VALUE;
             return;
         }
 
         Entry[] newTable = new Entry[newCapacity];
+
+        // 真正进行扩容
         transfer(newTable, initHashSeedAsNeeded(newCapacity));
+
         table = newTable;
         threshold = (int)Math.min(newCapacity * loadFactor, MAXIMUM_CAPACITY + 1);
     }
@@ -616,13 +631,22 @@ public class HashMap<K,V>
      */
     void transfer(Entry[] newTable, boolean rehash) {
         int newCapacity = newTable.length;
+
         for (Entry<K,V> e : table) {
+
             while(null != e) {
+
                 Entry<K,V> next = e.next;
+
                 if (rehash) {
+                    // 重新计算hash值
                     e.hash = null == e.key ? 0 : hash(e.key);
                 }
+
+                // 找到数组的位置
                 int i = indexFor(e.hash, newCapacity);
+
+                // 头插法插入元素
                 e.next = newTable[i];
                 newTable[i] = e;
                 e = next;
@@ -903,12 +927,19 @@ public class HashMap<K,V>
      * Subclass overrides this to alter the behavior of put method.
      */
     void addEntry(int hash, K key, V value, int bucketIndex) {
+
+        // 如果当前元素个数大于阈值，则进行扩容
         if ((size >= threshold) && (null != table[bucketIndex])) {
+
+            // hashMap默认扩容为2倍
             resize(2 * table.length);
             hash = (null != key) ? hash(key) : 0;
+
+            // 重新计算新的下标
             bucketIndex = indexFor(hash, table.length);
         }
 
+        // 使用头插法进行插入
         createEntry(hash, key, value, bucketIndex);
     }
 
@@ -921,8 +952,12 @@ public class HashMap<K,V>
      * clone, and readObject.
      */
     void createEntry(int hash, K key, V value, int bucketIndex) {
+        // 获取下标的第一个元素
         Entry<K,V> e = table[bucketIndex];
+
+        // 把新插入元素作为链表头，并且使用next引用指向原本的元素
         table[bucketIndex] = new Entry<>(hash, key, value, e);
+
         size++;
     }
 

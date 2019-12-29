@@ -790,9 +790,7 @@ public class ConcurrentHashMap<K, V> extends AbstractMap<K, V>
      * @param loadFactor  the load factor threshold, used to control resizing.
      * Resizing may be performed when the average number of elements per
      * bin exceeds this threshold.
-     * @param concurrencyLevel the estimated number of concurrently
-     * updating threads. The implementation performs internal sizing
-     * to try to accommodate this many threads.
+     * @param concurrencyLevel 估计并发更新的线程数
      * @throws IllegalArgumentException if the initial capacity is
      * negative or the load factor or concurrencyLevel are
      * nonpositive.
@@ -800,33 +798,57 @@ public class ConcurrentHashMap<K, V> extends AbstractMap<K, V>
     @SuppressWarnings("unchecked")
     public ConcurrentHashMap(int initialCapacity,
                              float loadFactor, int concurrencyLevel) {
+
         if (!(loadFactor > 0) || initialCapacity < 0 || concurrencyLevel <= 0)
             throw new IllegalArgumentException();
+
         if (concurrencyLevel > MAX_SEGMENTS)
             concurrencyLevel = MAX_SEGMENTS;
-        // Find power-of-two sizes best matching arguments
+
+        // sshift等于ssize向左位移的次数
         int sshift = 0;
+
+        // segment数组的大小
         int ssize = 1;
+
+        // 计算出大于concurrencyLevel的大小二次幂
         while (ssize < concurrencyLevel) {
             ++sshift;
             ssize <<= 1;
         }
+
+        /*
+         * 这里之所以用32，是因为ConcurrentHashMap的hash()方法输出的最大位数是32位
+         */
         this.segmentShift = 32 - sshift;
+
+        /**
+         * 散列运算的掩码
+         */
         this.segmentMask = ssize - 1;
+
         if (initialCapacity > MAXIMUM_CAPACITY)
             initialCapacity = MAXIMUM_CAPACITY;
+
         int c = initialCapacity / ssize;
+
         if (c * ssize < initialCapacity)
             ++c;
+
         int cap = MIN_SEGMENT_TABLE_CAPACITY;
+
         while (cap < c)
             cap <<= 1;
+
         // create segments and segments[0]
         Segment<K,V> s0 =
             new Segment<K,V>(loadFactor, (int)(cap * loadFactor),
                              (HashEntry<K,V>[])new HashEntry[cap]);
+
         Segment<K,V>[] ss = (Segment<K,V>[])new Segment[ssize];
+
         UNSAFE.putOrderedObject(ss, SBASE, s0); // ordered write of segments[0]
+
         this.segments = ss;
     }
 
